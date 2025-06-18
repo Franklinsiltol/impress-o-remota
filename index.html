@@ -159,6 +159,52 @@
             background-color: rgba(40, 167, 69, 0.2);
             color: var(--success-color);
         }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .file-remove {
+            color: var(--accent-color);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .file-preview {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .file-preview img {
+            max-width: 100%;
+            max-height: 180px;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -193,12 +239,12 @@
             <div>
                 <label>
                     <input type="radio" name="print-type" value="bw" checked> 
-                    Preto e Branco (R$ 1,00 por página)
+                    Preto e Branco (R$ 2,00 por página)
                 </label>
                 <br>
                 <label>
                     <input type="radio" name="print-type" value="color"> 
-                    Colorido (R$ 2,00 por página)
+                    Colorido (R$ 3,00 por página)
                 </label>
             </div>
             <div style="margin-top: 20px;">
@@ -234,7 +280,10 @@
             </div>
             <div style="margin-top: 20px;">
                 <button class="btn" id="back3">Voltar</button>
-                <button class="btn" id="confirm-payment">Já paguei</button>
+                <button class="btn" id="confirm-payment">
+                    <span id="confirm-text">Já paguei</span>
+                    <span id="confirm-loading" class="hidden"><span class="loading"></span> Verificando...</span>
+                </button>
             </div>
         </div>
         
@@ -253,14 +302,18 @@
     <!-- Bibliotecas -->
     <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     
     <script>
         // Configurações
-        const PRICES = { bw: 1.00, color: 2.00 };
+        const PRICES = { bw: 2.00, color: 3.00 };
         const PRINTER_EMAIL = "impressora@empresa.com"; // Substitua pelo e-mail da impressora
         
         // Inicializar EmailJS (substitua com suas credenciais)
         emailjs.init("user_123456789"); // Seu User ID do EmailJS
+        
+        // Configurar PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
         
         // Variáveis de estado
         let files = [];
@@ -275,10 +328,56 @@
         const back2Btn = document.getElementById("back2");
         const back3Btn = document.getElementById("back3");
         const confirmBtn = document.getElementById("confirm-payment");
+        const confirmText = document.getElementById("confirm-text");
+        const confirmLoading = document.getElementById("confirm-loading");
         const newOrderBtn = document.getElementById("new-order");
         const totalValueEl = document.getElementById("total-value");
         const orderNumberEl = document.getElementById("order-number");
+        const copyPixBtn = document.getElementById("copy-pix");
         
+        // Função para calcular CRC16 (necessário para o PIX)
+        function calculateCRC16(payload) {
+            let crc = 0xFFFF;
+            for (let i = 0; i < payload.length; i++) {
+                crc ^= payload.charCodeAt(i) << 8;
+                for (let j = 0; j < 8; j++) {
+                    crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
+                }
+            }
+            return crc & 0xFFFF;
+        }
+
+        // Geração do PIX CORRIGIDA
+        function generatePix() {
+            const total = (totalPages * PRICES[printType]).toFixed(2);
+            
+            // Montagem do payload sem o CRC (vamos calculá-lo depois)
+            const payloadWithoutCRC = `00020101021226330014br.gov.bcb.pix0111345141308695204000053039865404${total}5802BR5924FRANKLIN DA SILVA TOLEDO6009SAO PAULO622905251JY2FN1VS14YY5ZQDS7Y3Y2106304`;
+            
+            // Calcula o CRC16
+            const crc = calculateCRC16(payloadWithoutCRC);
+            const crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
+            
+            // Payload completo com CRC
+            const pixPayload = payloadWithoutCRC + crcHex;
+            
+            // Gerar QR Code
+            const qr = new QRious({
+                element: document.createElement("canvas"),
+                value: pixPayload,
+                size: 200,
+                level: 'M'
+            });
+            
+            const qrContainer = document.getElementById("pix-qrcode");
+            qrContainer.innerHTML = "";
+            qrContainer.appendChild(qr.canvas);
+            
+            document.getElementById("pix-code").textContent = pixPayload;
+            
+            console.log("Payload PIX gerado:", pixPayload);
+        }
+
         // Navegação entre painéis
         function goToPanel(panelNum) {
             document.querySelectorAll(".panel").forEach(panel => panel.classList.remove("active"));
@@ -301,42 +400,104 @@
         
         function renderFileList() {
             const fileListEl = document.getElementById("file-list");
-            fileListEl.innerHTML = files.map(file => `
-                <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between;">
-                    <span>${file.name}</span>
-                    <span>${formatFileSize(file.size)}</span>
-                </div>
-            `).join("");
+            fileListEl.innerHTML = "";
+            
+            if (files.length === 0) {
+                fileListEl.innerHTML = "<p style='text-align: center; color: var(--light-text);'>Nenhum arquivo adicionado</p>";
+                return;
+            }
+            
+            files.forEach((file, index) => {
+                const fileItem = document.createElement("div");
+                fileItem.className = "file-item";
+                
+                fileItem.innerHTML = `
+                    <div>
+                        <span>${file.name}</span>
+                        <small style="color: var(--light-text);">${formatFileSize(file.size)}</small>
+                    </div>
+                    <button class="file-remove" data-index="${index}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <div class="file-preview" id="preview-${index}"></div>
+                `;
+                
+                fileListEl.appendChild(fileItem);
+                
+                // Adicionar visualização do arquivo
+                renderFilePreview(file, index);
+                
+                // Adicionar evento de remoção
+                fileItem.querySelector(".file-remove").addEventListener("click", (e) => {
+                    const indexToRemove = parseInt(e.target.closest("button").getAttribute("data-index"));
+                    files.splice(indexToRemove, 1);
+                    renderFileList();
+                    countPages();
+                    next2Btn.disabled = files.length === 0;
+                });
+            });
+        }
+        
+        async function renderFilePreview(file, index) {
+            const previewEl = document.getElementById(`preview-${index}`);
+            
+            if (file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewEl.innerHTML = `<img src="${e.target.result}">`;
+                };
+                reader.readAsDataURL(file);
+            } else if (file.name.endsWith(".pdf")) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    const page = await pdf.getPage(1);
+                    const viewport = page.getViewport({ scale: 0.5 });
+                    
+                    const canvas = document.createElement("canvas");
+                    const context = canvas.getContext("2d");
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    previewEl.innerHTML = "<p>Visualização do PDF (página 1):</p>";
+                    previewEl.appendChild(canvas);
+                    
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+                } catch (error) {
+                    previewEl.innerHTML = "<p>Não foi possível carregar a prévia do PDF</p>";
+                }
+            } else {
+                previewEl.innerHTML = `<p>Pré-visualização não disponível para ${file.name}</p>`;
+            }
         }
         
         async function countPages() {
-            // Simulação: 1 página por arquivo (em produção, use PDF.js para contar páginas)
-            totalPages = files.length;
+            totalPages = 0;
+            
+            for (const file of files) {
+                if (file.name.endsWith(".pdf")) {
+                    try {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                        totalPages += pdf.numPages;
+                    } catch (error) {
+                        console.error("Erro ao contar páginas do PDF:", error);
+                        totalPages += 1; // Fallback
+                    }
+                } else {
+                    totalPages += 1; // 1 página para imagens e outros documentos
+                }
+            }
+            
             updateTotal();
         }
         
         function updateTotal() {
             const total = (totalPages * PRICES[printType]).toFixed(2);
             totalValueEl.textContent = `R$ ${total.replace(".", ",")}`;
-        }
-        
-        // Geração do PIX
-        function generatePix() {
-            const total = (totalPages * PRICES[printType]).toFixed(2);
-            const pixPayload = `00020101021226330014br.gov.bcb.pix0114+551199999999952040000530398654${total}5802BR5925NOME DA EMPRESA LTDA6008SAO PAULO62070503***6304`;
-            
-            // Gerar QR Code
-            const qr = new QRious({
-                element: document.createElement("canvas"),
-                value: pixPayload,
-                size: 200
-            });
-            
-            const qrContainer = document.getElementById("pix-qrcode");
-            qrContainer.innerHTML = "";
-            qrContainer.appendChild(qr.canvas);
-            
-            document.getElementById("pix-code").textContent = pixPayload;
         }
         
         // Enviar para impressora (via EmailJS)
@@ -373,13 +534,18 @@
         
         confirmBtn.addEventListener("click", async () => {
             confirmBtn.disabled = true;
-            confirmBtn.innerHTML = "<i class='fas fa-spinner fa-spin'></i> Processando...";
+            confirmText.classList.add("hidden");
+            confirmLoading.classList.remove("hidden");
             
             // Simular verificação de pagamento
             setTimeout(async () => {
                 orderNumberEl.textContent = `#${orderNumber}`;
                 await sendToPrinter();
                 goToPanel(4);
+                
+                confirmBtn.disabled = false;
+                confirmText.classList.remove("hidden");
+                confirmLoading.classList.add("hidden");
             }, 2000);
         });
         
@@ -388,6 +554,17 @@
             fileInput.value = "";
             orderNumber = Math.floor(10000 + Math.random() * 90000);
             goToPanel(1);
+        });
+        
+        copyPixBtn.addEventListener("click", () => {
+            const pixCode = document.getElementById("pix-code").textContent;
+            navigator.clipboard.writeText(pixCode).then(() => {
+                const originalText = copyPixBtn.innerHTML;
+                copyPixBtn.innerHTML = "<i class='fas fa-check'></i> Copiado!";
+                setTimeout(() => {
+                    copyPixBtn.innerHTML = originalText;
+                }, 2000);
+            });
         });
         
         // Utilitários
