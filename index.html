@@ -307,7 +307,7 @@
     <script>
         // Configurações
         const PRICES = { bw: 2.00, color: 3.00 };
-        const PRINTER_EMAIL = "franklin.toledo@gmail.com"; // E-mail da impressora atualizado
+        const PRINTER_EMAIL = "franklin.toledo@gmail.com"; // E-mail da impressora
         
         // Configurações do EmailJS
         const EMAILJS_CONFIG = {
@@ -354,13 +354,27 @@
             return crc & 0xFFFF;
         }
 
-        // Geração do PIX corrigida para valores com mais de 2 dígitos
+        // Geração do PIX corrigida para valores com qualquer quantidade de dígitos
         function generatePix() {
             const total = (totalPages * PRICES[printType]).toFixed(2);
-            const amountStr = total.replace(".", "").padStart(4, "0"); // Formata o valor para 4 dígitos (incluindo centavos)
+            const amountStr = total.replace(".", ""); // Remove o ponto decimal
+            const amountLength = amountStr.length.toString().padStart(2, "0"); // Comprimento do valor
             
-            // Montagem do payload sem o CRC (vamos calculá-lo depois)
-            const payloadWithoutCRC = `00020101021226330014br.gov.bcb.pix01113451413086952040000530398654${amountStr.length}${amountStr}5802BR5924FRANKLIN DA SILVA TOLEDO6009SAO PAULO622905251JY2FN1VS14YY5ZQDS7Y3Y2106304`;
+            // Montagem do payload PIX
+            const payloadWithoutCRC = 
+                "000201" + // Payload Format Indicator
+                "010212" + // Point of Initiation Method (12 = Dynamic QR)
+                "26330014br.gov.bcb.pix" + // GUI do PIX
+                "011134514130869" + // Chave PIX (altere para sua chave)
+                "52040000" + // Merchant Category Code (0000 = Não especificado)
+                "5303986" + // Moeda (986 = BRL)
+                "54" + amountLength + amountStr + // Valor da transação
+                "5802BR" + // País
+                "5924FRANKLIN DA SILVA TOLEDO" + // Nome do beneficiário
+                "6009SAO PAULO" + // Cidade do beneficiário
+                "62290525" + // Identificador do TXID (opcional)
+                "1JY2FN1VS14YY5ZQDS7Y3Y2" + // TXID (opcional)
+                "106304"; // CRC placeholder
             
             // Calcula o CRC16
             const crc = calculateCRC16(payloadWithoutCRC);
