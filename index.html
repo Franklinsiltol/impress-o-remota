@@ -258,7 +258,7 @@
             <div class="file-upload" id="drop-area">
                 <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: var(--primary-color);"></i>
                 <p>Arraste arquivos ou clique para selecionar</p>
-                <input type="file" id="file-input" multiple accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style="display: none;">
+                <input type="file" id="file-input" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.rtf,.odt,.ods,.odp" style="display: none;">
                 <button class="btn" onclick="document.getElementById('file-input').click()">Selecionar Arquivos</button>
             </div>
             <div id="file-list"></div>
@@ -307,10 +307,17 @@
     <script>
         // Configurações
         const PRICES = { bw: 2.00, color: 3.00 };
-        const PRINTER_EMAIL = "impressora@empresa.com"; // Substitua pelo e-mail da impressora
+        const PRINTER_EMAIL = "impressora@empresa.com"; // E-mail da impressora
         
-        // Inicializar EmailJS (substitua com suas credenciais)
-        emailjs.init("user_123456789"); // Seu User ID do EmailJS
+        // Configurações do EmailJS
+        const EMAILJS_CONFIG = {
+            SERVICE_ID: "service_3z4wulg",
+            TEMPLATE_ID: "__ejs-test-mail-service__",
+            USER_ID: "mRcpr9wwQOuUfS9OnwuZY22K" // Substitua pelo seu User ID real
+        };
+        
+        // Inicializar EmailJS
+        emailjs.init(EMAILJS_CONFIG.USER_ID);
         
         // Configurar PDF.js
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
@@ -347,7 +354,7 @@
             return crc & 0xFFFF;
         }
 
-        // Geração do PIX CORRIGIDA
+        // Geração do PIX
         function generatePix() {
             const total = (totalPages * PRICES[printType]).toFixed(2);
             
@@ -374,8 +381,6 @@
             qrContainer.appendChild(qr.canvas);
             
             document.getElementById("pix-code").textContent = pixPayload;
-            
-            console.log("Payload PIX gerado:", pixPayload);
         }
 
         // Navegação entre painéis
@@ -488,7 +493,7 @@
                         totalPages += 1; // Fallback
                     }
                 } else {
-                    totalPages += 1; // 1 página para imagens e outros documentos
+                    totalPages += 1; // 1 página para outros formatos
                 }
             }
             
@@ -503,14 +508,18 @@
         // Enviar para impressora (via EmailJS)
         async function sendToPrinter() {
             try {
-                await emailjs.send("service_id", "template_id", {
-                    to_email: PRINTER_EMAIL,
-                    order_number: orderNumber,
-                    total_pages: totalPages,
-                    print_type: printType === "color" ? "Colorido" : "Preto e Branco",
-                    total_value: (totalPages * PRICES[printType]).toFixed(2),
-                    message: `Novo pedido de impressão #${orderNumber}`
-                });
+                await emailjs.send(
+                    EMAILJS_CONFIG.SERVICE_ID,
+                    EMAILJS_CONFIG.TEMPLATE_ID,
+                    {
+                        to_email: franklin.toledo@gmail.com,
+                        order_number: orderNumber,
+                        total_pages: totalPages,
+                        print_type: printType === "color" ? "Colorido" : "Preto e Branco",
+                        total_value: (totalPages * PRICES[printType]).toFixed(2),
+                        message: `Novo pedido de impressão #${orderNumber}`
+                    }
+                );
                 
                 console.log("E-mail enviado para a impressora!");
             } catch (error) {
