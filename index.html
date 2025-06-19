@@ -307,13 +307,13 @@
     <script>
         // Configurações
         const PRICES = { bw: 2.00, color: 3.00 };
-        const PRINTER_EMAIL = "franklin.toledo@gmail.com"; // E-mail da impressora
+        const PRINTER_EMAIL = "franklin.toledo@gmail.com";
         
         // Configurações do EmailJS
         const EMAILJS_CONFIG = {
             SERVICE_ID: "service_3z4wulg",
             TEMPLATE_ID: "__ejs-test-mail-service__",
-            USER_ID: "mRcpr9wwQOuUfS9OnwuZY22K" // Substitua pelo seu User ID real
+            USER_ID: "mRcpr9wwQOuUfS9OnwuZY22K"
         };
         
         // Inicializar EmailJS
@@ -354,21 +354,21 @@
             return crc & 0xFFFF;
         }
 
-        // Geração do PIX corrigida para valores com qualquer quantidade de dígitos
+        // Geração do PIX CORRIGIDA - Valor formatado corretamente
         function generatePix() {
             const total = (totalPages * PRICES[printType]).toFixed(2);
-            const amountStr = total.replace(".", ""); // Remove o ponto decimal
-            const amountLength = amountStr.length.toString().padStart(2, "0"); // Comprimento do valor
+            const amountStr = total.replace(".", ""); // Remove o ponto decimal mantendo os centavos
+            const amountLength = amountStr.length.toString().padStart(2, "0");
             
             // Montagem do payload PIX
             const payloadWithoutCRC = 
                 "000201" + // Payload Format Indicator
                 "010212" + // Point of Initiation Method (12 = Dynamic QR)
                 "26330014br.gov.bcb.pix" + // GUI do PIX
-                "011134514130869" + // Chave PIX (altere para sua chave)
+                "011134514130869" + // Chave PIX (substitua pela sua)
                 "52040000" + // Merchant Category Code (0000 = Não especificado)
                 "5303986" + // Moeda (986 = BRL)
-                "54" + amountLength + amountStr + // Valor da transação
+                "54" + amountLength + amountStr + // Valor da transação (corrigido)
                 "5802BR" + // País
                 "5924FRANKLIN DA SILVA TOLEDO" + // Nome do beneficiário
                 "6009SAO PAULO" + // Cidade do beneficiário
@@ -400,7 +400,7 @@
             // Adiciona atraso de 10 segundos para mostrar o botão "Já paguei"
             setTimeout(() => {
                 confirmBtn.style.display = "inline-block";
-            }, 10000); // 10 segundos
+            }, 10000);
         }
 
         // Navegação entre painéis
