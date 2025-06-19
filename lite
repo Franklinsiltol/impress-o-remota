@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Impressão Remota - Pague com PIX</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #4a6bff;
+            --secondary-color: #f8f9fa;
+            --accent-color: #ff6b6b;
+            --text-color: #333;
+            --light-text: #6c757d;
+            --border-color: #dee2e6;
+            --success-color: #28a745;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7ff;
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px 0;
+        }
+        
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--border-color);
+            z-index: 1;
+        }
+        
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+        }
+        
+        .step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: var(--border-color);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .step.active .step-number {
+            background-color: var(--primary-color);
+        }
+        
+        .step.completed .step-number {
+            background-color: var(--success-color);
+        }
+        
+        .panel {
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        .panel.active {
+            display: block;
+        }
+        
+        .file-upload {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        
+        .file-upload:hover {
+            border-color: var(--primary-color);
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background-color: #3a5bef;
+        }
+        
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        #pix-qrcode {
+            margin: 20px auto;
+            text-align: center;
+        }
+        
+        #pix-qrcode img {
+            max-width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .status-success {
+            background-color: rgba(40, 167, 69, 0.2);
+            color: var(--success-color);
+        }
+        
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .file-remove {
+            color: var(--accent-color);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .file-preview {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+        }
+        
+        .file-preview img {
+            max-width: 100%;
+            max-height: 180px;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        .instructions {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            text-align: left;
+        }
+        
+        .instructions ol {
+            margin: 10px 0 10px 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Impressão Remota</h1>
+            <p>Envie seus arquivos e pague com PIX para imprimir</p>
+        </header>
+        
+        <div class="step-indicator">
+            <div class="step active" id="step1">
+                <div class="step-number">1</div>
+                <div class="step-text">Configuração</div>
+            </div>
+            <div class="step" id="step2">
+                <div class="step-number">2</div>
+                <div class="step-text">Arquivos</div>
+            </div>
+            <div class="step" id="step3">
+                <div class="step-number">3</div>
+                <div class="step-text">Pagamento</div>
+            </div>
+            <div class="step" id="step4">
+                <div class="step-number">4</div>
+                <div class="step-text">Confirmação</div>
+            </div>
+        </div>
+        
+        <!-- Painel 1: Configuração -->
+        <div class="panel active" id="panel1">
+            <h2>Tipo de Impressão</h2>
+            <div>
+                <label>
+                    <input type="radio" name="print-type" value="bw" checked> 
+                    Preto e Branco (R$ 2,00 por página)
+                </label>
+                <br>
+                <label>
+                    <input type="radio" name="print-type" value="color"> 
+                    Colorido (R$ 3,00 por página)
+                </label>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn" id="next1">Próximo</button>
+            </div>
+        </div>
+        
+        <!-- Painel 2: Upload de arquivos -->
+        <div class="panel" id="panel2">
+            <h2>Envie seus arquivos</h2>
+            <div class="file-upload" id="drop-area">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: var(--primary-color);"></i>
+                <p>Arraste arquivos ou clique para selecionar</p>
+                <input type="file" id="file-input" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.rtf,.odt,.ods,.odp" style="display: none;">
+                <button class="btn" onclick="document.getElementById('file-input').click()">Selecionar Arquivos</button>
+            </div>
+            <div id="file-list"></div>
+            <div style="margin-top: 20px;">
+                <button class="btn" id="back2">Voltar</button>
+                <button class="btn" id="next2" disabled>Próximo</button>
+            </div>
+        </div>
+        
+        <!-- Painel 3: Pagamento -->
+        <div class="panel" id="panel3">
+            <h2>Pagamento via PIX</h2>
+            <div>
+                <p>Total: <strong id="total-value">R$ 0,00</strong></p>
+                <p>Escaneie o QR Code abaixo para pagar:</p>
+                <div id="pix-qrcode"></div>
+                <div id="pix-code" style="word-break: break-all; margin: 20px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;"></div>
+                <button class="btn" id="copy-pix"><i class="fas fa-copy"></i> Copiar Código PIX</button>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <button class="btn" id="back3">Voltar</button>
+                <button class="btn" id="confirm-payment" style="display: none;">
+                    <span id="confirm-text">Já paguei</span>
+                    <span id="confirm-loading" class="hidden"><span class="loading"></span> Verificando...</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Painel 4: Confirmação -->
+        <div class="panel" id="panel4">
+            <div class="status-message status-success">
+                <i class="fas fa-check-circle"></i>
+                <h2>Pagamento Confirmado!</h2>
+                <p>Agora precisamos que você envie os arquivos por e-mail.</p>
+                <p>Nº do pedido: <strong id="order-number">#00000</strong></p>
+            </div>
+            
+            <div class="instructions">
+                <h3><i class="fas fa-paper-plane"></i> Como enviar os arquivos:</h3>
+                <ol>
+                    <li>Clique no botão abaixo "Abrir Cliente de E-mail"</li>
+                    <li>Seu aplicativo de e-mail vai abrir automaticamente</li>
+                    <li>Procure pelo ícone de clipe/anexo (📎)</li>
+                    <li>Selecione os mesmos arquivos que você enviou aqui</li>
+                    <li>Revise e envie o e-mail</li>
+                </ol>
+                <p>O destinatário já está preenchido com o e-mail da impressora.</p>
+            </div>
+            
+            <button class="btn" id="send-email">
+                <i class="fas fa-envelope"></i> Abrir Cliente de E-mail
+            </button>
+            <button class="btn" id="new-order">Fazer Novo Pedido</button>
+        </div>
+    </div>
+
+    <!-- Bibliotecas -->
+    <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    
+    <script>
+        // Configurações
+        const PRICES = { bw: 2.00, color: 3.00 };
+        const PRINTER_EMAIL = "franklin.toledo@gmail.com"; // E-mail da impressora
+        
+        // Configurar PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+        
+        // Variáveis de estado
+        let files = [];
+        let totalPages = 0;
+        let printType = "bw";
+        let orderNumber = Math.floor(10000 + Math.random() * 90000);
+        
+        // Elementos DOM
+        const fileInput = document.getElementById("file-input");
+        const next1Btn = document.getElementById("next1");
+        const next2Btn = document.getElementById("next2");
+        const back2Btn = document.getElementById("back2");
+        const back3Btn = document.getElementById("back3");
+        const confirmBtn = document.getElementById("confirm-payment");
+        const confirmText = document.getElementById("confirm-text");
+        const confirmLoading = document.getElementById("confirm-loading");
+        const newOrderBtn = document.getElementById("new-order");
+        const totalValueEl = document.getElementById("total-value");
+        const orderNumberEl = document.getElementById("order-number");
+        const copyPixBtn = document.getElementById("copy-pix");
+        
+        // Função para calcular CRC16 (necessário para o PIX)
+        function calculateCRC16(payload) {
+            let crc = 0xFFFF;
+            for (let i = 0; i < payload.length; i++) {
+                crc ^= payload.charCodeAt(i) << 8;
+                for (let j = 0; j < 8; j++) {
+                    crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
+                }
+            }
+            return crc & 0xFFFF;
+        }
+
+        // Geração do PIX
+        function generatePix() {
+            const total = (totalPages * PRICES[printType]).toFixed(2);
+            const amountStr = total.replace(".", ""); // Remove o ponto decimal mantendo centavos
+            const amountLength = amountStr.length.toString().padStart(2, "0");
+            
+            // Montagem do payload PIX
+            const payloadWithoutCRC = 
+                "000201" + // Payload Format Indicator
+                "010212" + // Point of Initiation Method (12 = Dynamic QR)
+                "26330014br.gov.bcb.pix" + // GUI do PIX
+                "011134514130869" + // Chave PIX (substitua pela sua)
+                "52040000" + // Merchant Category Code (0000 = Não especificado)
+                "5303986" + // Moeda (986 = BRL)
+                "54" + amountLength + amountStr + // Valor da transação
+                "5802BR" + // País
+                "5924FRANKLIN DA SILVA TOLEDO" + // Nome do beneficiário
+                "6009SAO PAULO" + // Cidade do beneficiário
+                "62290525" + // Identificador do TXID (opcional)
+                "1JY2FN1VS14YY5ZQDS7Y3Y2" + // TXID (opcional)
+                "106304"; // CRC placeholder
+            
+            // Calcula o CRC16
+            const crc = calculateCRC16(payloadWithoutCRC);
+            const crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
+            
+            // Payload completo com CRC
+            const pixPayload = payloadWithoutCRC + crcHex;
+            
+            // Gerar QR Code
+            const qr = new QRious({
+                element: document.createElement("canvas"),
+                value: pixPayload,
+                size: 200,
+                level: 'M'
+            });
+            
+            const qrContainer = document.getElementById("pix-qrcode");
+            qrContainer.innerHTML = "";
+            qrContainer.appendChild(qr.canvas);
+            
+            document.getElementById("pix-code").textContent = pixPayload;
+            
+            // Mostrar botão após 10 segundos
+            setTimeout(() => {
+                confirmBtn.style.display = "inline-block";
+            }, 10000);
+        }
+
+        // Navegação entre painéis
+        function goToPanel(panelNum) {
+            document.querySelectorAll(".panel").forEach(panel => panel.classList.remove("active"));
+            document.getElementById(`panel${panelNum}`).classList.add("active");
+            
+            document.querySelectorAll(".step").forEach((step, index) => {
+                step.classList.remove("active", "completed");
+                if (index < panelNum - 1) step.classList.add("completed");
+                if (index === panelNum - 1) step.classList.add("active");
+            });
+        }
+        
+        // Upload de arquivos
+        fileInput.addEventListener("change", async (e) => {
+            files = Array.from(e.target.files);
+            renderFileList();
+            await countPages();
+            next2Btn.disabled = files.length === 0;
+        });
+        
+        function renderFileList() {
+            const fileListEl = document.getElementById("file-list");
+            fileListEl.innerHTML = "";
+            
+            if (files.length === 0) {
+                fileListEl.innerHTML = "<p style='text-align: center; color: var(--light-text);'>Nenhum arquivo adicionado</p>";
+                return;
+            }
+            
+            files.forEach((file, index) => {
+                const fileItem = document.createElement("div");
+                fileItem.className = "file-item";
+                
+                fileItem.innerHTML = `
+                    <div>
+                        <span>${file.name}</span>
+                        <small style="color: var(--light-text);">${formatFileSize(file.size)}</small>
+                    </div>
+                    <button class="file-remove" data-index="${index}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    <div class="file-preview" id="preview-${index}"></div>
+                `;
+                
+                fileListEl.appendChild(fileItem);
+                
+                // Adicionar visualização do arquivo
+                renderFilePreview(file, index);
+                
+                // Adicionar evento de remoção
+                fileItem.querySelector(".file-remove").addEventListener("click", (e) => {
+                    const indexToRemove = parseInt(e.target.closest("button").getAttribute("data-index"));
+                    files.splice(indexToRemove, 1);
+                    renderFileList();
+                    countPages();
+                    next2Btn.disabled = files.length === 0;
+                });
+            });
+        }
+        
+        async function renderFilePreview(file, index) {
+            const previewEl = document.getElementById(`preview-${index}`);
+            
+            if (file.type.startsWith("image/")) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewEl.innerHTML = `<img src="${e.target.result}">`;
+                };
+                reader.readAsDataURL(file);
+            } else if (file.name.endsWith(".pdf")) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    const page = await pdf.getPage(1);
+                    const viewport = page.getViewport({ scale: 0.5 });
+                    
+                    const canvas = document.createElement("canvas");
+                    const context = canvas.getContext("2d");
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    previewEl.innerHTML = "<p>Visualização do PDF (página 1):</p>";
+                    previewEl.appendChild(canvas);
+                    
+                    await page.render({
+                        canvasContext: context,
+                        viewport: viewport
+                    }).promise;
+                } catch (error) {
+                    previewEl.innerHTML = "<p>Não foi possível carregar a prévia do PDF</p>";
+                }
+            } else {
+                previewEl.innerHTML = `<p>Pré-visualização não disponível para ${file.name}</p>`;
+            }
+        }
+        
+        async function countPages() {
+            totalPages = 0;
+            
+            for (const file of files) {
+                if (file.name.endsWith(".pdf")) {
+                    try {
+                        const arrayBuffer = await file.arrayBuffer();
+                        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                        totalPages += pdf.numPages;
+                    } catch (error) {
+                        console.error("Erro ao contar páginas do PDF:", error);
+                        totalPages += 1; // Fallback
+                    }
+                } else {
+                    totalPages += 1; // 1 página para outros formatos
+                }
+            }
+            
+            updateTotal();
+        }
+        
+        function updateTotal() {
+            const total = (totalPages * PRICES[printType]).toFixed(2);
+            totalValueEl.textContent = `R$ ${total.replace(".", ",")}`;
+        }
+        
+        // Função para abrir o cliente de e-mail
+        function openEmailClient() {
+            const subject = `[Impressão #${orderNumber}] ${files.length} arquivo(s)`;
+            
+            // Lista de arquivos para referência
+            const fileList = files.map(file => 
+                `- ${file.name} (${formatFileSize(file.size)})`).join('\n');
+            
+            const body = `Olá,\n\nPor favor, imprima os seguintes arquivos:\n${fileList}\n\n` +
+                         `Detalhes do pedido:\n` +
+                         `- Número: ${orderNumber}\n` +
+                         `- Páginas: ${totalPages}\n` +
+                         `- Tipo: ${printType === 'color' ? 'Colorido' : 'Preto e Branco'}\n` +
+                         `- Valor: R$ ${(totalPages * PRICES[printType]).toFixed(2)}\n\n` +
+                         `Instruções:\n1. Anexe os arquivos listados acima\n` +
+                         `2. Envie este e-mail`;
+            
+            // Abre o cliente de e-mail padrão
+            window.location.href = `mailto:${PRINTER_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            
+            // Mostra alerta para dispositivos móveis
+            if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+                setTimeout(() => {
+                    alert('No celular: 1) Toque no clip para anexar 2) Selecione os arquivos');
+                }, 500);
+            }
+        }
+        
+        // Utilitários
+        function formatFileSize(bytes) {
+            if (bytes === 0) return "0 Bytes";
+            const k = 1024;
+            const sizes = ["Bytes", "KB", "MB", "GB"];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+        }
+
+        // Event Listeners
+        next1Btn.addEventListener("click", () => {
+            printType = document.querySelector("input[name='print-type']:checked").value;
+            goToPanel(2);
+        });
+        
+        next2Btn.addEventListener("click", () => {
+            generatePix();
+            goToPanel(3);
+        });
+        
+        back2Btn.addEventListener("click", () => goToPanel(1));
+        back3Btn.addEventListener("click", () => goToPanel(2));
+        
+        confirmBtn.addEventListener("click", async () => {
+            confirmBtn.disabled = true;
+            confirmText.classList.add("hidden");
+            confirmLoading.classList.remove("hidden");
+            
+            // Simular verificação de pagamento
+            setTimeout(() => {
+                orderNumberEl.textContent = `#${orderNumber}`;
+                goToPanel(4);
+                
+                // Adicionar evento ao botão de e-mail
+                document.getElementById("send-email").addEventListener("click", openEmailClient);
+                
+                // Adicionar evento ao botão novo pedido
+                document.getElementById("new-order").addEventListener("click", () => {
+                    files = [];
+                    fileInput.value = "";
+                    orderNumber = Math.floor(10000 + Math.random() * 90000);
+                    goToPanel(1);
+                });
+                
+                // Abrir automaticamente o cliente de e-mail
+                openEmailClient();
+                
+                confirmBtn.disabled = false;
+                confirmText.classList.remove("hidden");
+                confirmLoading.classList.add("hidden");
+            }, 2000);
+        });
+        
+        copyPixBtn.addEventListener("click", () => {
+            const pixCode = document.getElementById("pix-code").textContent;
+            navigator.clipboard.writeText(pixCode).then(() => {
+                const originalText = copyPixBtn.innerHTML;
+                copyPixBtn.innerHTML = "<i class='fas fa-check'></i> Copiado!";
+                setTimeout(() => {
+                    copyPixBtn.innerHTML = originalText;
+                }, 2000);
+            });
+        });
+    </script>
+</body>
+</html>
