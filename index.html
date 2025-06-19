@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Impressão Remota - Pague com PIX</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://smtpjs.com/v3/smtp.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
     <style>
         :root {
             --primary-color: #4a6bff;
@@ -17,49 +14,45 @@
             --light-text: #6c757d;
             --border-color: #dee2e6;
             --success-color: #28a745;
+            --warning-color: #ffc107;
         }
-        
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-        
         body {
             background-color: #f5f7ff;
             color: var(--text-color);
             line-height: 1.6;
             padding: 20px;
         }
-        
         .container {
             max-width: 800px;
             margin: 0 auto;
             background: white;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            padding: 20px;
+            padding: 30px;
+            overflow: hidden;
         }
-        
         header {
             text-align: center;
             margin-bottom: 20px;
-            padding: 20px 0;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
         }
-        
         h1 {
             color: var(--primary-color);
             margin-bottom: 10px;
         }
-        
         .step-indicator {
             display: flex;
             justify-content: space-between;
             margin-bottom: 30px;
             position: relative;
         }
-        
         .step-indicator::before {
             content: '';
             position: absolute;
@@ -70,14 +63,14 @@
             background-color: var(--border-color);
             z-index: 1;
         }
-        
         .step {
             display: flex;
             flex-direction: column;
             align-items: center;
             z-index: 2;
+            background-color: white;
+            padding: 0 10px;
         }
-        
         .step-number {
             width: 30px;
             height: 30px;
@@ -89,25 +82,34 @@
             align-items: center;
             margin-bottom: 5px;
             font-weight: bold;
+            transition: all 0.3s;
         }
-        
         .step.active .step-number {
             background-color: var(--primary-color);
+            transform: scale(1.1);
         }
-        
         .step.completed .step-number {
             background-color: var(--success-color);
         }
-        
+        .step-text {
+            font-size: 14px;
+            color: var(--light-text);
+            text-align: center;
+        }
+        .step.active .step-text {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        .step.completed .step-text {
+            color: var(--success-color);
+        }
         .panel {
             display: none;
             animation: fadeIn 0.5s ease;
         }
-        
         .panel.active {
             display: block;
         }
-        
         .file-upload {
             border: 2px dashed var(--border-color);
             border-radius: 8px;
@@ -115,12 +117,16 @@
             text-align: center;
             cursor: pointer;
             margin-bottom: 20px;
+            transition: all 0.3s;
         }
-        
         .file-upload:hover {
             border-color: var(--primary-color);
+            background-color: rgba(74, 107, 255, 0.05);
         }
-        
+        .file-upload.highlight {
+            border-color: var(--primary-color);
+            background-color: rgba(74, 107, 255, 0.1);
+        }
         .btn {
             padding: 12px 24px;
             background-color: var(--primary-color);
@@ -130,126 +136,222 @@
             cursor: pointer;
             font-size: 16px;
             transition: all 0.3s ease;
+            margin: 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
-        
+        .btn i {
+            margin-right: 8px;
+        }
         .btn:hover {
             background-color: #3a5bef;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
         }
-        
         .btn:disabled {
             background-color: #cccccc;
             cursor: not-allowed;
+            box-shadow: none;
         }
-        
+        .btn-secondary {
+            background-color: var(--light-text);
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
         .hidden {
             display: none;
         }
-        
         #pix-qrcode {
             margin: 20px auto;
             text-align: center;
         }
-        
-        #pix-qrcode img {
-            max-width: 200px;
+        #pix-qrcode canvas {
             border: 1px solid #ddd;
             border-radius: 8px;
+            padding: 10px;
+            background: white;
         }
-        
         .status-message {
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
             text-align: center;
         }
-        
         .status-success {
-            background-color: rgba(40, 167, 69, 0.2);
+            background-color: rgba(40, 167, 69, 0.1);
             color: var(--success-color);
+            border: 1px solid rgba(40, 167, 69, 0.3);
         }
-        
+        .status-error {
+            background-color: rgba(255, 107, 107, 0.1);
+            color: var(--accent-color);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+        .status-warning {
+            background-color: rgba(255, 193, 7, 0.1);
+            color: #d39e00;
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
         .file-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px;
+            padding: 12px;
             border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.3s;
         }
-        
+        .file-item:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+        .file-info {
+            flex: 1;
+            margin-right: 15px;
+            overflow: hidden;
+        }
+        .file-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+        .file-meta {
+            display: flex;
+            font-size: 13px;
+            color: var(--light-text);
+        }
+        .file-size {
+            margin-right: 10px;
+        }
         .file-remove {
             color: var(--accent-color);
             background: none;
             border: none;
             cursor: pointer;
             font-size: 16px;
+            padding: 8px;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
         }
-        
-        .file-preview {
-            margin-top: 10px;
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 10px;
+        .file-remove:hover {
+            background-color: rgba(255, 107, 107, 0.1);
         }
-        
-        .file-preview img {
-            max-width: 100%;
-            max-height: 180px;
-            display: block;
-            margin: 0 auto;
-        }
-        
         .loading {
             display: inline-block;
+            vertical-align: middle;
             width: 20px;
             height: 20px;
             border: 3px solid rgba(255,255,255,.3);
             border-radius: 50%;
             border-top-color: white;
             animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
         }
-        
-        .progress-container {
+        .loading-text {
+            vertical-align: middle;
+        }
+        .print-options {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
             margin: 20px 0;
-            display: none;
         }
-        
-        .progress-bar {
-            height: 20px;
-            background-color: #f0f0f0;
-            border-radius: 10px;
-            overflow: hidden;
+        .print-option {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
         }
-        
-        .progress {
-            height: 100%;
-            background-color: var(--primary-color);
-            width: 0%;
-            transition: width 0.3s ease;
+        .print-option:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(74, 107, 255, 0.05);
         }
-        
-        .progress-text {
-            text-align: center;
-            margin-top: 5px;
+        .print-option input {
+            margin-right: 15px;
+        }
+        .print-option-details {
+            flex: 1;
+        }
+        .print-option-title {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        .print-option-price {
             font-size: 14px;
             color: var(--light-text);
         }
-        
+        .print-option.selected {
+            border-color: var(--primary-color);
+            background-color: rgba(74, 107, 255, 0.1);
+        }
+        .payment-summary {
+            background-color: var(--secondary-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .summary-total {
+            font-weight: bold;
+            font-size: 18px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        .pix-instructions {
+            background-color: rgba(74, 107, 255, 0.1);
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .pix-instructions ol {
+            padding-left: 20px;
+            margin-top: 10px;
+        }
+        .pix-instructions li {
+            margin-bottom: 8px;
+        }
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+            .step-text {
+                font-size: 12px;
+            }
+            .btn {
+                padding: 10px 15px;
+                font-size: 14px;
+            }
+            .file-upload {
+                padding: 20px 10px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Impressão Remota</h1>
+            <h1><i class="fas fa-print"></i> Impressão Remota</h1>
             <p>Envie seus arquivos e pague com PIX para imprimir</p>
         </header>
         
@@ -272,424 +374,594 @@
             </div>
         </div>
         
-        <!-- Painel 1: Configuração -->
         <div class="panel active" id="panel1">
-            <h2>Tipo de Impressão</h2>
-            <div>
-                <label>
-                    <input type="radio" name="print-type" value="bw" checked> 
-                    Preto e Branco (R$ 2,00 por página)
+            <h2><i class="fas fa-cog"></i> Tipo de Impressão</h2>
+            <p style="margin-bottom: 20px; color: var(--light-text);">Selecione o tipo de impressão desejado:</p>
+            
+            <div class="print-options">
+                <label class="print-option selected" id="option-bw">
+                    <input type="radio" name="print-type" value="bw" checked hidden>
+                    <div class="print-option-details">
+                        <div class="print-option-title">Preto e Branco</div>
+                        <div class="print-option-price">R$ 2,00 por página</div>
+                    </div>
+                    <i class="fas fa-check-circle" style="color: var(--primary-color);"></i>
                 </label>
-                <br>
-                <label>
-                    <input type="radio" name="print-type" value="color"> 
-                    Colorido (R$ 3,00 por página)
+                
+                <label class="print-option" id="option-color">
+                    <input type="radio" name="print-type" value="color" hidden>
+                    <div class="print-option-details">
+                        <div class="print-option-title">Colorido</div>
+                        <div class="print-option-price">R$ 3,00 por página</div>
+                    </div>
+                    <i class="fas fa-check-circle" style="color: var(--primary-color); opacity: 0;"></i>
                 </label>
-            </div>
-            <div style="margin-top: 20px;">
-                <button class="btn" id="next1">Próximo</button>
-            </div>
-        </div>
-        
-        <!-- Painel 2: Upload de arquivos -->
-        <div class="panel" id="panel2">
-            <h2>Envie seus arquivos</h2>
-            <div class="file-upload" id="drop-area">
-                <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: var(--primary-color);"></i>
-                <p>Arraste arquivos ou clique para selecionar</p>
-                <input type="file" id="file-input" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.rtf,.odt,.ods,.odp" style="display: none;">
-                <button class="btn" onclick="document.getElementById('file-input').click()">Selecionar Arquivos</button>
-            </div>
-            <div id="file-list"></div>
-            <div style="margin-top: 20px;">
-                <button class="btn" id="back2">Voltar</button>
-                <button class="btn" id="next2" disabled>Próximo</button>
-            </div>
-        </div>
-        
-        <!-- Painel 3: Pagamento -->
-        <div class="panel" id="panel3">
-            <h2>Pagamento via PIX</h2>
-            <div>
-                <p>Total: <strong id="total-value">R$ 0,00</strong></p>
-                <p>Escaneie o QR Code abaixo para pagar:</p>
-                <div id="pix-qrcode"></div>
-                <div id="pix-code" style="word-break: break-all; margin: 20px 0; padding: 10px; background: #f8f9fa; border-radius: 5px;"></div>
-                <button class="btn" id="copy-pix"><i class="fas fa-copy"></i> Copiar Código PIX</button>
             </div>
             
-            <div class="progress-container" id="progress-container">
-                <div class="progress-bar">
-                    <div class="progress" id="progress-bar"></div>
-                </div>
-                <div class="progress-text" id="progress-text">Enviando arquivos... 0%</div>
-            </div>
-            
-            <div style="margin-top: 20px;">
-                <button class="btn" id="back3">Voltar</button>
-                <button class="btn" id="confirm-payment" style="display: none;">
-                    <span id="confirm-text">Já paguei</span>
-                    <span id="confirm-loading" class="hidden"><span class="loading"></span> Verificando...</span>
+            <div style="margin-top: 30px; text-align: right;">
+                <button class="btn" id="next1">
+                    <i class="fas fa-arrow-right"></i> Próximo
                 </button>
             </div>
         </div>
         
-        <!-- Painel 4: Confirmação -->
-        <div class="panel" id="panel4">
-            <div class="status-message status-success">
-                <i class="fas fa-check-circle"></i>
-                <h2>Pedido Confirmado!</h2>
-                <p>Seus arquivos foram enviados para impressão.</p>
-                <p>Nº do pedido: <strong id="order-number">#00000</strong></p>
+        <div class="panel" id="panel2">
+            <h2><i class="fas fa-file-upload"></i> Envie seus arquivos</h2>
+            <p style="margin-bottom: 20px; color: var(--light-text);">Arraste os arquivos para a área abaixo ou clique para selecionar</p>
+            
+            <div class="file-upload" id="drop-area">
+                <i class="fas fa-cloud-upload-alt" style="font-size: 48px; color: var(--primary-color); margin-bottom: 15px;"></i>
+                <p style="margin-bottom: 15px;">Solte seus arquivos aqui ou clique para selecionar</p>
+                <p style="font-size: 13px; color: var(--light-text);">Formatos suportados: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, JPG, JPEG, PNG</p>
+                <input type="file" id="file-input" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png" style="display: none;">
             </div>
-            <button class="btn" id="new-order">Fazer Novo Pedido</button>
+            
+            <div id="file-list" style="margin-top: 20px;"></div>
+            
+            <div class="payment-summary" id="preview-summary" style="display: none;">
+                <div class="summary-row">
+                    <span>Quantidade de arquivos:</span>
+                    <span id="summary-files">0</span>
+                </div>
+                <div class="summary-row">
+                    <span>Total de páginas:</span>
+                    <span id="summary-pages">0</span>
+                </div>
+                <div class="summary-row">
+                    <span>Tipo de impressão:</span>
+                    <span id="summary-type">Preto e Branco</span>
+                </div>
+                <div class="summary-row summary-total">
+                    <span>Valor total:</span>
+                    <span id="summary-total">R$ 0,00</span>
+                </div>
+            </div>
+            
+            <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+                <button class="btn btn-secondary" id="back2">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
+                <button class="btn" id="next2" disabled>
+                    <i class="fas fa-arrow-right"></i> Próximo
+                </button>
+            </div>
+        </div>
+        
+        <div class="panel" id="panel3">
+            <h2><i class="fas fa-qrcode"></i> Pagamento via PIX</h2>
+            
+            <div class="payment-summary">
+                <div class="summary-row">
+                    <span>Número do pedido:</span>
+                    <span id="order-number">#00000</span>
+                </div>
+                <div class="summary-row">
+                    <span>Quantidade de arquivos:</span>
+                    <span id="payment-files">0</span>
+                </div>
+                <div class="summary-row">
+                    <span>Total de páginas:</span>
+                    <span id="payment-pages">0</span>
+                </div>
+                <div class="summary-row">
+                    <span>Tipo de impressão:</span>
+                    <span id="payment-type">Preto e Branco</span>
+                </div>
+                <div class="summary-row summary-total">
+                    <span>Valor total:</span>
+                    <span id="payment-total">R$ 0,00</span>
+                </div>
+            </div>
+            
+            <div class="pix-instructions">
+                <h3 style="margin-top: 0; color: var(--primary-color);">Como pagar com PIX:</h3>
+                <ol>
+                    <li>Abra o aplicativo do seu banco</li>
+                    <li>Selecione a opção PIX</li>
+                    <li>Escaneie o QR Code abaixo ou copie o código</li>
+                    <li>Confirme o pagamento</li>
+                </ol>
+            </div>
+            
+            <div style="text-align: center;">
+                <div id="pix-qrcode"></div>
+                <div id="pix-code" style="word-break: break-all; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 5px; font-family: monospace;"></div>
+                <button class="btn" id="copy-pix">
+                    <i class="fas fa-copy"></i> Copiar Código PIX
+                </button>
+            </div>
+            
+            <div style="margin-top: 30px; display: flex; justify-content: space-between;">
+                <button class="btn btn-secondary" id="back3">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
+                <button class="btn" id="confirm-payment" style="display: none;">
+                    <span id="confirm-text"><i class="fas fa-check-circle"></i> Já paguei, Enviar Arquivos</span>
+                    <span id="confirm-loading" class="hidden"><span class="loading"></span><span class="loading-text">Enviando...</span></span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="panel" id="panel4">
+            <div id="confirmation-message">
+                <!-- O conteúdo aqui será gerado dinamicamente -->
+            </div>
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn" id="new-order">
+                    <i class="fas fa-plus-circle"></i> Fazer Novo Pedido
+                </button>
+            </div>
         </div>
     </div>
 
+    <!-- Bibliotecas -->
+    <script src="https://cdn.jsdelivr.net/npm/qrious@4.0.2/dist/qrious.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+    
     <script>
-        // Configurações
-        const PRICES = { bw: 2.00, color: 3.00 };
-        
-        // CONFIGURAÇÃO SMTP - PREENCHA COM SEUS DADOS
-        const SMTP_CONFIG = {
-            host: 'smtp.seuservidor.com', // Ex: smtp.gmail.com
-            port: 587, // 587 para TLS, 465 para SSL
-            username: 'seuemail@dominio.com',
-            password: 'suasenha',
-            from: 'seuemail@dominio.com',
-            to: 'franklin.toledo@gmail.com',
-            secure: false // true para porta 465, false para outras
-        };
-        
-        // Configurar PDF.js
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
-        
-        // Variáveis de estado
-        let files = [];
-        let totalPages = 0;
-        let printType = "bw";
-        let orderNumber = Math.floor(10000 + Math.random() * 90000);
-        
-        // Elementos DOM
-        const fileInput = document.getElementById("file-input");
-        const next1Btn = document.getElementById("next1");
-        const next2Btn = document.getElementById("next2");
-        const back2Btn = document.getElementById("back2");
-        const back3Btn = document.getElementById("back3");
-        const confirmBtn = document.getElementById("confirm-payment");
-        const confirmText = document.getElementById("confirm-text");
-        const confirmLoading = document.getElementById("confirm-loading");
-        const newOrderBtn = document.getElementById("new-order");
-        const totalValueEl = document.getElementById("total-value");
-        const orderNumberEl = document.getElementById("order-number");
-        const copyPixBtn = document.getElementById("copy-pix");
-        const progressContainer = document.getElementById("progress-container");
-        const progressBar = document.getElementById("progress-bar");
-        const progressText = document.getElementById("progress-text");
-        
-        // Função para calcular CRC16 (necessário para o PIX)
-        function calculateCRC16(payload) {
-            let crc = 0xFFFF;
-            for (let i = 0; i < payload.length; i++) {
-                crc ^= payload.charCodeAt(i) << 8;
-                for (let j = 0; j < 8; j++) {
-                    crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : crc << 1;
-                }
+    // =========================================================================================
+    // INÍCIO DO SCRIPT JAVASCRIPT
+    // =========================================================================================
+
+    // --- CONFIGURAÇÕES ---
+    // ▼▼▼ SUBSTITUA A LINHA ABAIXO PELA URL DO SEU APP DA WEB ▼▼▼
+    const GOOGLE_SCRIPT_URL = "COLE_AQUI_A_URL_DO_SEU_APP_DA_WEB_IMPLANTADO";
+
+    const PRICES = { bw: 2.00, color: 3.00 };
+    const PIX_KEY = "34514130869"; // Sua chave PIX (CPF/CNPJ/Telefone/Chave Aleatória)
+    const PIX_BENEFICIARY_NAME = "FRANKLIN DA SILVA TOLEDO"; // Seu nome (sem acentos, até 25 chars)
+    const PIX_BENEFICIARY_CITY = "SAO PAULO"; // Sua cidade (sem acentos, até 15 chars)
+    const MAX_FILE_SIZE_MB = 10; // Tamanho máximo por arquivo em MB
+    const MAX_TOTAL_SIZE_MB = 30; // Tamanho máximo total em MB
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js';
+    
+    // --- VARIÁVEIS DE ESTADO ---
+    let files = [];
+    let totalPages = 0;
+    let printType = "bw";
+    let orderNumber = generateOrderNumber();
+    let paymentVerified = false;
+    
+    // --- ELEMENTOS DOM ---
+    const allPanels = document.querySelectorAll(".panel");
+    const allSteps = document.querySelectorAll(".step");
+    const fileInput = document.getElementById("file-input");
+    const dropArea = document.getElementById("drop-area");
+    const fileListEl = document.getElementById("file-list");
+    const next1Btn = document.getElementById("next1");
+    const next2Btn = document.getElementById("next2");
+    const back2Btn = document.getElementById("back2");
+    const back3Btn = document.getElementById("back3");
+    const confirmBtn = document.getElementById("confirm-payment");
+    const confirmText = document.getElementById("confirm-text");
+    const confirmLoading = document.getElementById("confirm-loading");
+    const newOrderBtn = document.getElementById("new-order");
+    const copyPixBtn = document.getElementById("copy-pix");
+    const printTypeRadios = document.querySelectorAll("input[name='print-type']");
+    const confirmationMessageContainer = document.getElementById("confirmation-message");
+    const optionBw = document.getElementById("option-bw");
+    const optionColor = document.getElementById("option-color");
+    const previewSummary = document.getElementById("preview-summary");
+    const summaryFilesEl = document.getElementById("summary-files");
+    const summaryPagesEl = document.getElementById("summary-pages");
+    const summaryTypeEl = document.getElementById("summary-type");
+    const summaryTotalEl = document.getElementById("summary-total");
+    const orderNumberEl = document.getElementById("order-number");
+    const paymentFilesEl = document.getElementById("payment-files");
+    const paymentPagesEl = document.getElementById("payment-pages");
+    const paymentTypeEl = document.getElementById("payment-type");
+    const paymentTotalEl = document.getElementById("payment-total");
+
+    // --- FUNÇÕES UTILITÁRIAS ---
+    function generateOrderNumber() {
+        const now = new Date();
+        const datePart = now.getFullYear().toString().substr(-2) + 
+                        (now.getMonth() + 1).toString().padStart(2, '0') + 
+                        now.getDate().toString().padStart(2, '0');
+        const randomPart = Math.floor(100 + Math.random() * 900);
+        return datePart + randomPart;
+    }
+
+    const formatPixField = (id, value) => {
+        const length = value.length.toString().padStart(2, '0');
+        return `${id}${length}${value}`;
+    };
+
+    function calculateCRC16(payload) {
+        let crc = 0xFFFF;
+        const polynomial = 0x1021;
+        for (let i = 0; i < payload.length; i++) {
+            crc ^= (payload.charCodeAt(i) & 0xFF) << 8;
+            for (let j = 0; j < 8; j++) {
+                crc = (crc & 0x8000) ? (crc << 1) ^ polynomial : crc << 1;
             }
-            return crc & 0xFFFF;
         }
+        return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+    }
 
-        // Geração do PIX
-        function generatePix() {
-            const total = (totalPages * PRICES[printType]).toFixed(2);
-            const amountStr = total.replace(".", ""); // Remove o ponto decimal mantendo centavos
-            const amountLength = amountStr.length.toString().padStart(2, "0");
-            
-            // Montagem do payload PIX
-            const payloadWithoutCRC = 
-                "000201" + // Payload Format Indicator
-                "010212" + // Point of Initiation Method (12 = Dynamic QR)
-                "26330014br.gov.bcb.pix" + // GUI do PIX
-                "011134514130869" + // Chave PIX (substitua pela sua)
-                "52040000" + // Merchant Category Code (0000 = Não especificado)
-                "5303986" + // Moeda (986 = BRL)
-                "54" + amountLength + amountStr + // Valor da transação
-                "5802BR" + // País
-                "5924FRANKLIN DA SILVA TOLEDO" + // Nome do beneficiário
-                "6009SAO PAULO" + // Cidade do beneficiário
-                "62290525" + // Identificador do TXID (opcional)
-                "1JY2FN1VS14YY5ZQDS7Y3Y2" + // TXID (opcional)
-                "106304"; // CRC placeholder
-            
-            // Calcula o CRC16
-            const crc = calculateCRC16(payloadWithoutCRC);
-            const crcHex = crc.toString(16).toUpperCase().padStart(4, '0');
-            
-            // Payload completo com CRC
-            const pixPayload = payloadWithoutCRC + crcHex;
-            
-            // Gerar QR Code
-            const qr = new QRious({
-                element: document.createElement("canvas"),
-                value: pixPayload,
-                size: 200,
-                level: 'M'
-            });
-            
-            const qrContainer = document.getElementById("pix-qrcode");
-            qrContainer.innerHTML = "";
-            qrContainer.appendChild(qr.canvas);
-            
-            document.getElementById("pix-code").textContent = pixPayload;
-            
-            // Mostrar botão após 10 segundos
-            setTimeout(() => {
-                confirmBtn.style.display = "inline-block";
-            }, 10000);
+    function generatePix() {
+        const totalValue = (totalPages * PRICES[printType]).toFixed(2);
+        const txid = `PEDIDO${orderNumber}`;
+
+        const payloadFields = [
+            formatPixField('00', '01'),
+            formatPixField('26', formatPixField('00', 'br.gov.bcb.pix') + formatPixField('01', PIX_KEY)),
+            formatPixField('52', '0000'),
+            formatPixField('53', '986'),
+            formatPixField('54', totalValue),
+            formatPixField('58', 'BR'),
+            formatPixField('59', PIX_BENEFICIARY_NAME.substring(0, 25)),
+            formatPixField('60', PIX_BENEFICIARY_CITY.substring(0, 15)),
+            formatPixField('62', formatPixField('05', txid))
+        ];
+        const payloadWithoutCRC = payloadFields.join('') + "6304";
+        const pixPayload = payloadWithoutCRC + calculateCRC16(payloadWithoutCRC);
+        
+        const qrContainer = document.getElementById("pix-qrcode");
+        qrContainer.innerHTML = "";
+        new QRious({ 
+            element: qrContainer, 
+            value: pixPayload, 
+            size: 220, 
+            level: 'M',
+            background: 'white',
+            foreground: 'black'
+        });
+        
+        document.getElementById("pix-code").textContent = pixPayload;
+        orderNumberEl.textContent = `#${orderNumber}`;
+        paymentFilesEl.textContent = files.length;
+        paymentPagesEl.textContent = totalPages;
+        paymentTypeEl.textContent = printType === 'color' ? 'Colorido' : 'Preto e Branco';
+        paymentTotalEl.textContent = `R$ ${totalValue.replace(".", ",")}`;
+        
+        confirmBtn.style.display = "none";
+        setTimeout(() => { confirmBtn.style.display = "inline-block"; }, 3000);
+    }
+
+    function goToPanel(panelNum) {
+        allPanels.forEach(panel => panel.classList.remove("active"));
+        document.getElementById(`panel${panelNum}`).classList.add("active");
+        allSteps.forEach((step, index) => {
+            step.classList.remove("active", "completed");
+            if (index < panelNum - 1) step.classList.add("completed");
+            if (index === panelNum - 1) step.classList.add("active");
+        });
+        
+        // Atualizar resumo na etapa 2
+        if (panelNum === 2 && files.length > 0) {
+            previewSummary.style.display = "block";
+            summaryFilesEl.textContent = files.length;
+            summaryPagesEl.textContent = totalPages;
+            summaryTypeEl.textContent = printType === 'color' ? 'Colorido' : 'Preto e Branco';
+            summaryTotalEl.textContent = `R$ ${(totalPages * PRICES[printType]).toFixed(2).replace(".", ",")}`;
+        } else if (panelNum === 2) {
+            previewSummary.style.display = "none";
         }
-
-        // Navegação entre painéis
-        function goToPanel(panelNum) {
-            document.querySelectorAll(".panel").forEach(panel => panel.classList.remove("active"));
-            document.getElementById(`panel${panelNum}`).classList.add("active");
+    }
+    
+    async function handleFiles(newFiles) {
+        const validFiles = [];
+        let totalSize = 0;
+        
+        // Verificar cada arquivo
+        for (const file of Array.from(newFiles)) {
+            // Verificar tamanho do arquivo
+            if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+                showAlert(`O arquivo "${file.name}" excede o tamanho máximo de ${MAX_FILE_SIZE_MB}MB e não será adicionado.`, 'error');
+                continue;
+            }
             
-            document.querySelectorAll(".step").forEach((step, index) => {
-                step.classList.remove("active", "completed");
-                if (index < panelNum - 1) step.classList.add("completed");
-                if (index === panelNum - 1) step.classList.add("active");
-            });
+            // Verificar tipo de arquivo
+            const validExtensions = ['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx', '.jpg', '.jpeg', '.png'];
+            const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+            if (!validExtensions.includes(fileExt)) {
+                showAlert(`O arquivo "${file.name}" tem um formato não suportado e não será adicionado.`, 'error');
+                continue;
+            }
+            
+            // Verificar tamanho total
+            totalSize += file.size;
+            if (totalSize > MAX_TOTAL_SIZE_MB * 1024 * 1024) {
+                showAlert(`A adição do arquivo "${file.name}" excederia o tamanho total máximo de ${MAX_TOTAL_SIZE_MB}MB.`, 'error');
+                break;
+            }
+            
+            validFiles.push(file);
         }
         
-        // Upload de arquivos
-        fileInput.addEventListener("change", async (e) => {
-            files = Array.from(e.target.files);
+        if (validFiles.length > 0) {
+            files = files.concat(validFiles);
             renderFileList();
             await countPages();
             next2Btn.disabled = files.length === 0;
-        });
-        
-        function renderFileList() {
-            const fileListEl = document.getElementById("file-list");
-            fileListEl.innerHTML = "";
-            
-            if (files.length === 0) {
-                fileListEl.innerHTML = "<p style='text-align: center; color: var(--light-text);'>Nenhum arquivo adicionado</p>";
-                return;
-            }
-            
-            files.forEach((file, index) => {
-                const fileItem = document.createElement("div");
-                fileItem.className = "file-item";
-                
-                fileItem.innerHTML = `
-                    <div>
-                        <span>${file.name}</span>
-                        <small style="color: var(--light-text);">${formatFileSize(file.size)}</small>
-                    </div>
-                    <button class="file-remove" data-index="${index}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                    <div class="file-preview" id="preview-${index}"></div>
-                `;
-                
-                fileListEl.appendChild(fileItem);
-                
-                // Adicionar visualização do arquivo
-                renderFilePreview(file, index);
-                
-                // Adicionar evento de remoção
-                fileItem.querySelector(".file-remove").addEventListener("click", (e) => {
-                    const indexToRemove = parseInt(e.target.closest("button").getAttribute("data-index"));
-                    files.splice(indexToRemove, 1);
-                    renderFileList();
-                    countPages();
-                    next2Btn.disabled = files.length === 0;
-                });
-            });
+        }
+    }
+
+    function renderFileList() {
+        fileListEl.innerHTML = "";
+        if (files.length === 0) {
+            fileListEl.innerHTML = '<p style="text-align: center; color: var(--light-text);">Nenhum arquivo adicionado</p>';
+            return;
         }
         
-        async function renderFilePreview(file, index) {
-            const previewEl = document.getElementById(`preview-${index}`);
-            
-            if (file.type.startsWith("image/")) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewEl.innerHTML = `<img src="${e.target.result}">`;
-                };
-                reader.readAsDataURL(file);
-            } else if (file.name.endsWith(".pdf")) {
+        files.forEach((file, index) => {
+            const fileItem = document.createElement("div");
+            fileItem.className = "file-item";
+            fileItem.innerHTML = `
+                <div class="file-info">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-meta">
+                        <span class="file-size">${formatFileSize(file.size)}</span>
+                        <span class="file-type">${file.type || 'Arquivo'}</span>
+                    </div>
+                </div>
+                <button class="file-remove" data-index="${index}" title="Remover arquivo">
+                    <i class="fas fa-trash"></i>
+                </button>`;
+            fileListEl.appendChild(fileItem);
+        });
+    }
+    
+    async function countPages() {
+        totalPages = 0;
+        const loadingEl = document.createElement('div');
+        loadingEl.innerHTML = '<p style="text-align: center;"><span class="loading"></span> <span class="loading-text">Calculando páginas...</span></p>';
+        fileListEl.appendChild(loadingEl);
+        
+        for (const file of files) {
+            if (file.type === "application/pdf") {
                 try {
                     const arrayBuffer = await file.arrayBuffer();
-                    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-                    const page = await pdf.getPage(1);
-                    const viewport = page.getViewport({ scale: 0.5 });
-                    
-                    const canvas = document.createElement("canvas");
-                    const context = canvas.getContext("2d");
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    
-                    previewEl.innerHTML = "<p>Visualização do PDF (página 1):</p>";
-                    previewEl.appendChild(canvas);
-                    
-                    await page.render({
-                        canvasContext: context,
-                        viewport: viewport
-                    }).promise;
-                } catch (error) {
-                    previewEl.innerHTML = "<p>Não foi possível carregar a prévia do PDF</p>";
+                    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+                    totalPages += pdf.numPages;
+                } catch (error) { 
+                    totalPages += 1; 
                 }
             } else {
-                previewEl.innerHTML = `<p>Pré-visualização não disponível para ${file.name}</p>`;
+                totalPages += 1;
             }
         }
         
-        async function countPages() {
-            totalPages = 0;
-            
-            for (const file of files) {
-                if (file.name.endsWith(".pdf")) {
-                    try {
-                        const arrayBuffer = await file.arrayBuffer();
-                        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-                        totalPages += pdf.numPages;
-                    } catch (error) {
-                        console.error("Erro ao contar páginas do PDF:", error);
-                        totalPages += 1; // Fallback
-                    }
-                } else {
-                    totalPages += 1; // 1 página para outros formatos
-                }
-            }
-            
-            updateTotal();
+        loadingEl.remove();
+        updateSummary();
+    }
+    
+    function updateSummary() {
+        const total = (totalPages * PRICES[printType]).toFixed(2);
+        if (previewSummary.style.display === "block") {
+            summaryPagesEl.textContent = totalPages;
+            summaryTotalEl.textContent = `R$ ${total.replace(".", ",")}`;
         }
-        
-        function updateTotal() {
-            const total = (totalPages * PRICES[printType]).toFixed(2);
-            totalValueEl.textContent = `R$ ${total.replace(".", ",")}`;
-        }
-        
-        // Converter arquivo para Base64
-        function toBase64(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-            });
-        }
-        
-        // Função para enviar e-mail via SMTP
-        async function sendToPrinter() {
-            confirmBtn.disabled = true;
-            confirmText.classList.add("hidden");
-            confirmLoading.classList.remove("hidden");
-            progressContainer.style.display = "block";
-            
-            try {
-                // Prepara os anexos
-                const attachments = [];
-                let totalSize = 0;
-                let processedSize = 0;
-                
-                // Calcula tamanho total para progresso
-                files.forEach(file => {
-                    totalSize += file.size;
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    }
+
+    function resetApp() {
+        files = [];
+        totalPages = 0;
+        fileInput.value = "";
+        fileListEl.innerHTML = "";
+        next2Btn.disabled = true;
+        printTypeRadios[0].checked = true;
+        printType = 'bw';
+        optionBw.classList.add('selected');
+        optionColor.classList.remove('selected');
+        optionBw.querySelector('.fa-check-circle').style.opacity = '1';
+        optionColor.querySelector('.fa-check-circle').style.opacity = '0';
+        orderNumber = generateOrderNumber();
+        paymentVerified = false;
+        goToPanel(1);
+    }
+
+    function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64String = reader.result.split(',')[1];
+                resolve({ 
+                    name: file.name, 
+                    mimeType: file.type, 
+                    size: file.size,
+                    data: base64String 
                 });
-                
-                // Converte arquivos para base64 e atualiza progresso
-                for (const file of files) {
-                    const base64 = await toBase64(file);
-                    attachments.push({
-                        name: file.name,
-                        data: base64.split(',')[1] // Remove o prefixo
-                    });
-                    
-                    processedSize += file.size;
-                    const percent = Math.round((processedSize / totalSize) * 100);
-                    progressBar.style.width = `${percent}%`;
-                    progressText.textContent = `Enviando arquivos... ${percent}%`;
-                }
-                
-                // Envia via SMTP
-                await Email.send({
-                    Host: SMTP_CONFIG.host,
-                    Username: SMTP_CONFIG.username,
-                    Password: SMTP_CONFIG.password,
-                    Port: SMTP_CONFIG.port,
-                    From: SMTP_CONFIG.from,
-                    To: SMTP_CONFIG.to,
-                    Subject: `Pedido de Impressão #${orderNumber}`,
-                    Body: `
-                        <h1>Novo Pedido de Impressão</h1>
-                        <p><strong>Número do Pedido:</strong> #${orderNumber}</p>
-                        <p><strong>Tipo de Impressão:</strong> ${printType === "color" ? "Colorido" : "Preto e Branco"}</p>
-                        <p><strong>Total de Páginas:</strong> ${totalPages}</p>
-                        <p><strong>Valor Total:</strong> R$ ${(totalPages * PRICES[printType]).toFixed(2)}</p>
-                        <p><strong>Arquivos Anexados:</strong> ${files.length}</p>
-                    `,
-                    Attachments: attachments,
-                    SecureToken: SMTP_CONFIG.secure
-                });
-                
-                // Sucesso
-                orderNumberEl.textContent = `#${orderNumber}`;
-                goToPanel(4);
-                
-            } catch (error) {
-                console.error("Erro ao enviar:", error);
-                alert("Erro ao enviar para impressora. Por favor, tente novamente.");
-            } finally {
-                confirmBtn.disabled = false;
-                confirmText.classList.remove("hidden");
-                confirmLoading.classList.add("hidden");
-                progressContainer.style.display = "none";
-            }
+            };
+            reader.onerror = (error) => reject(error);
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function showConfirmation(status, message, orderId) {
+        const successHTML = `
+            <div class="status-message status-success">
+                <i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                <h2>Pedido Enviado com Sucesso!</h2>
+                <p>${message}</p>
+                <p>Nº do pedido: <strong>#${orderId}</strong></p>
+                <p style="margin-top: 20px;">Você receberá um e-mail com a confirmação do pedido.</p>
+            </div>`;
+
+        const errorHTML = `
+            <div class="status-message status-error">
+                <i class="fas fa-exclamation-circle" style="font-size: 48px; margin-bottom: 20px;"></i>
+                <h2>Ocorreu um Erro</h2>
+                <p>${message}</p>
+                <p>Por favor, tente novamente ou contate o suporte.</p>
+            </div>`;
+
+        confirmationMessageContainer.innerHTML = status === 'success' ? successHTML : errorHTML;
+        goToPanel(4);
+    }
+    
+    function showAlert(message, type = 'info') {
+        const alertEl = document.createElement('div');
+        alertEl.className = `status-message status-${type}`;
+        alertEl.innerHTML = `
+            <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            ${message}
+        `;
+        
+        document.querySelector('.container').prepend(alertEl);
+        
+        setTimeout(() => {
+            alertEl.style.opacity = '0';
+            setTimeout(() => alertEl.remove(), 500);
+        }, 5000);
+    }
+
+    // --- EVENT LISTENERS ---
+    optionBw.addEventListener('click', () => {
+        printType = 'bw';
+        optionBw.classList.add('selected');
+        optionColor.classList.remove('selected');
+        optionBw.querySelector('.fa-check-circle').style.opacity = '1';
+        optionColor.querySelector('.fa-check-circle').style.opacity = '0';
+        if (files.length > 0) updateSummary();
+    });
+    
+    optionColor.addEventListener('click', () => {
+        printType = 'color';
+        optionColor.classList.add('selected');
+        optionBw.classList.remove('selected');
+        optionColor.querySelector('.fa-check-circle').style.opacity = '1';
+        optionBw.querySelector('.fa-check-circle').style.opacity = '0';
+        if (files.length > 0) updateSummary();
+    });
+    
+    next1Btn.addEventListener("click", () => goToPanel(2));
+    next2Btn.addEventListener("click", () => { generatePix(); goToPanel(3); });
+    back2Btn.addEventListener("click", () => goToPanel(1));
+    back3Btn.addEventListener("click", () => goToPanel(2));
+    
+    fileInput.addEventListener("change", (e) => handleFiles(e.target.files));
+    dropArea.addEventListener('click', () => fileInput.click());
+    
+    // Drag and drop events
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => {
+            dropArea.classList.add('highlight');
+            dropArea.querySelector('p').textContent = 'Solte os arquivos para enviar';
+        });
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => {
+            dropArea.classList.remove('highlight');
+            dropArea.querySelector('p').textContent = 'Solte seus arquivos aqui ou clique para selecionar';
+        });
+    });
+    
+    dropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        handleFiles(e.dataTransfer.files);
+    });
+
+    fileListEl.addEventListener("click", (e) => {
+        if (e.target.closest(".file-remove")) {
+            const indexToRemove = parseInt(e.target.closest(".file-remove").getAttribute("data-index"));
+            files.splice(indexToRemove, 1);
+            renderFileList();
+            countPages();
+            next2Btn.disabled = files.length === 0;
         }
+    });
+
+    confirmBtn.addEventListener("click", async () => {
+        if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL === "COLE_AQUI_A_URL_DO_SEU_APP_DA_WEB_IMPLANTADO") {
+            showAlert("ERRO DE CONFIGURAÇÃO: O URL do script do Google não foi definido no código HTML.", 'error');
+            return;
+        }
+
+        confirmBtn.disabled = true;
+        confirmText.classList.add("hidden");
+        confirmLoading.classList.remove("hidden");
         
-        // Event Listeners
-        next1Btn.addEventListener("click", () => {
-            printType = document.querySelector("input[name='print-type']:checked").value;
-            goToPanel(2);
-        });
-        
-        next2Btn.addEventListener("click", () => {
-            generatePix();
-            goToPanel(3);
-        });
-        
-        back2Btn.addEventListener("click", () => goToPanel(1));
-        back3Btn.addEventListener("click", () => goToPanel(2));
-        
-        confirmBtn.addEventListener("click", sendToPrinter);
-        
-        newOrderBtn.addEventListener("click", () => {
-            files = [];
-            fileInput.value = "";
-            orderNumber = Math.floor(10000 + Math.random() * 90000);
-            goToPanel(1);
-        });
-        
-        copyPixBtn.addEventListener("click", () => {
-            const pixCode = document.getElementById("pix-code").textContent;
-            navigator.clipboard.writeText(pixCode).then(() => {
-                const originalText = copyPixBtn.innerHTML;
-                copyPixBtn.innerHTML = "<i class='fas fa-check'></i> Copiado!";
-                setTimeout(() => {
-                    copyPixBtn.innerHTML = originalText;
-                }, 2000);
+        try {
+            const filePromises = files.map(file => readFileAsBase64(file));
+            const filesAsBase64 = await Promise.all(filePromises);
+
+            const payload = {
+                orderNumber: orderNumber,
+                printType: printType === 'color' ? 'Colorido' : 'Preto e Branco',
+                totalPages: totalPages,
+                totalValue: (totalPages * PRICES[printType]).toFixed(2),
+                files: filesAsBase64,
+                pixKey: PIX_KEY,
+                customerEmail: "", // Você pode adicionar um campo para o cliente informar o e-mail
+                timestamp: new Date().toISOString()
+            };
+
+            const response = await fetch(GOOGLE_SCRIPT_URL, {
+                method: 'POST',
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
             });
-        });
-        
-        // Utilitários
-        function formatFileSize(bytes) {
-            if (bytes === 0) return "0 Bytes";
-            const k = 1024;
-            const sizes = ["Bytes", "KB", "MB", "GB"];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+
+            const result = await response.json();
+
+            if (result.status === "success") {
+                showConfirmation('success', 'Seus arquivos foram enviados para impressão com sucesso.', orderNumber);
+            } else {
+                throw new Error(result.message || "Erro desconhecido ao processar o pedido");
+            }
+
+        } catch (error) {
+            console.error("Erro ao enviar arquivos:", error);
+            showConfirmation('error', `Falha ao enviar os arquivos. Detalhes: ${error.message}`, orderNumber);
+        } finally {
+            confirmBtn.disabled = false;
+            confirmText.classList.remove("hidden");
+            confirmLoading.classList.add("hidden");
         }
+    });
+    
+    copyPixBtn.addEventListener("click", () => {
+        const pixCode = document.getElementById("pix-code").textContent;
+        navigator.clipboard.writeText(pixCode).then(() => {
+            const originalText = copyPixBtn.innerHTML;
+            copyPixBtn.innerHTML = "<i class='fas fa-check'></i> Código Copiado!";
+            setTimeout(() => { copyPixBtn.innerHTML = originalText; }, 2000);
+        }).catch(err => {
+            console.error("Falha ao copiar código PIX:", err);
+        });
+    });
+
+    newOrderBtn.addEventListener("click", resetApp);
+    
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+        // Verificar se a URL do Google Script está configurada
+        if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL === "COLE_AQUI_A_URL_DO_SEU_APP_DA_WEB_IMPLANTADO") {
+            console.warn("ATENÇÃO: O URL do script do Google não foi definido no código HTML.");
+        }
+    });
     </script>
 </body>
 </html>
